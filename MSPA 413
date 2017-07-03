@@ -1,0 +1,677 @@
+require(fBasics)    # for calculations 
+require(quantmod)   # for returns calculations
+require(fpp)        # for data 
+require(knitr)      # for table output
+require(ggplot2)    # for graphing
+require(ggthemes)   # for graphing beautifully
+require(gridExtra)  # for laying out graphs
+
+getwd()
+setwd("/Users/rachellevy/Desktop")
+data1 = read.table(file.path("d-nflx3dx0913.txt"), header=T)
+head(data1)
+#1a
+data1b = basicStats(data1)
+#kable is basic table generator for easier to read output
+kable(d1b[c('Mean', 'Stdev', 'Skewness', 'Kurtosis', 'Minimum', 'Maximum'), -(1:2)])
+#1b
+#Log transform, +1 moves everything to the left so there is no log(0) which would return an error
+data1l = log(data1[,-(1:2)]+1)  
+data1bl = basicStats(data1l)
+kable(data1bl[c('Mean', 'Stdev', 'Skewness', 'Kurtosis', 'Minimum', 'Maximum'),])
+
+#1c
+t.test(data1l$nflx)
+
+#1d
+densitityplotnflx = ggplot(data1l, aes(nflx)) + 
+  stat_density(alpha = 0.4) + 
+  labs(x="Returns", y="Density") + 
+  ggtitle("Netflix") 
+
+densityplotsp = ggplot(data1l, aes(sprtrn)) + 
+  stat_density(alpha = 0.4) +
+  labs(x="Returns", y="Density") + 
+  ggtitle("S&P") 
+
+grid.arrange(densitityplotnflx, densityplotsp, ncol=2)
+
+
+#2
+getwd()
+setwd("/Users/rachellevy/Desktop")
+data2 = read.table(file.path("m-ge3dx8113.txt"), header=T)
+#2a
+#same as question 1b
+data2l = log(data2[,-(1:2)]+1)  
+t.test(data2l$ge)
+
+#2b
+#compute skewness test
+skewnesstest = skewness(data2l$ge) / sqrt(6 / length(data2l$ge)) 
+#compute the p-value
+paste(2*(1-pnorm(abs(skewnesstest))))  
+
+
+#2c
+#compute kurtosis test
+kurtosistest = kurtosis(data2l$ge) / sqrt(24 / length(data2l$ge))  
+print (kurtosistest)
+paste(2*(1-pnorm(abs(kurtosistest))))
+
+#3a
+library(fpp)
+ts.visitors = visitors  
+df.visitors = as.data.frame(visitors)
+
+
+plot(ts.visitors)
+
+#3b
+aust = window(visitors)
+forecast_aust = hw(aust, seasonal="multiplicative")
+print(forecast_aust)
+
+#3c
+#Why is multiplicative seasonality necessary here?
+#Multiplicative method is preferred when the seasonal variations are changing proportionally to the level of the series. 
+#In this series, it appears that the variations are growing.
+
+#3d
+forecast_aust_damped = hw(aust, seasonal="multiplicative", damped=TRUE)
+plot(forecast(forecast_aust_damped))
+forecast_aust_exp = hw(aust, seasonal="multiplicative", exponential=TRUE)
+plot(forecast(forecast_aust_exp))
+forecast_aust_exp_damped = hw(aust, seasonal="multiplicative", exponential=TRUE, damped=TRUE)
+plot(forecast(forecast_aust_exp_damped))
+
+#3e
+accuracy(forecast_aust)
+accuracy(forecast_aust_damped)
+accuracy(forecast_aust_exp)
+accuracy(forecast_aust_exp_damped)
+#It appears that the lowest RMSE was within tthe Multiplicative and Damped model, which fit the data best.
+
+#3f
+#Multiplicative Holt-Winters' Method
+
+forecast_aust = hw(aust, multiplicative=TRUE)
+plot(forecast_aust)
+hist(residuals(forecast_aust), nclass=20)
+plot(residuals(forecast_aust))
+accuracy(forecast_aust)
+
+#an ETS Model
+aust_ets = ets(visitors, model="ZZZ")
+plot(forecast(aust_ets))
+hist(residuals(aust_ets), nclass=20)
+plot(residuals(aust_ets))
+accuracy(aust_ets)
+
+#Additive ETS model applied to a Box-Cox transformed Series
+add_ets_box = ets(visitors, additive.only = TRUE, lambda = TRUE)
+plot(forecast(add_ets_box))
+hist(residuals(add_ets_box), nclass=20)
+plot(residuals(add_ets_box))
+accuracy(add_ets_box)
+
+#Seasonal naive method applied to the Box-Cox transformed series
+aust_naive = snaive(visitors, lambda = TRUE)
+plot(forecast(aust_naive))
+hist(residuals(aust_naive), nclass=20)
+plot(residuals(aust_naive))
+accuracy(aust_naive)
+
+#STL decomposition applied to the Box-Cox transformed data followed by an ETS model applied to the seasonally adjusted (transformed) data
+aust_stld = stlf(visitors, method = "ets", lambda = TRUE)
+plot(forecast(aust_stld))
+hist(residuals(aust_stld), nclass=20)
+plot(residuals(aust_stld))
+accuracy(aust_stld)
+
+################
+
+require(fBasics)    # for calculations 
+require(quantmod)   # for returns calculations
+require(fpp)        # for data 
+require(knitr)      # for table output
+require(ggplot2)    # for graphing
+require(ggthemes)   # for graphing beautifully
+require(gridExtra)  # for laying out graphs
+
+
+getwd()
+setwd("/Users/rachellevy/Desktop")
+data1 = read.table(file.path("m-ge3dx8113.txt"), header=T)
+head(data1)
+
+#1a Compute the sample mean, standard deviation, skewness, 
+#excess kurtosis, minimum, and maximum of each simple return series.
+data1a = basicStats(data1)
+#kable is basic table generator for easier to read output
+kable(data1a[c('Mean', 'Stdev', 'Skewness', 'Kurtosis', 'Minimum', 'Maximum'), -(1:2)])
+
+#1b Transform the simple returns to log returns. Compute the sample mean, standard deviation, 
+#skewness, excess kurtosis, minimum, and maximum of each log return series.
+data1b = log(data1[,-(1:2)]+1)  # Log Transform, +1 as an offset so that we don't compute log(0)
+data1b_stats=ts = basicStats(data1b)
+kable(data1b_stats[c('Mean', 'Stdev', 'Skewness', 'Kurtosis', 'Minimum', 'Maximum'),])
+
+#1c Test the null hypothesis that the mean of the log returns of GE stock is zero.
+t.test(data1b$ge)
+
+#1d Obtain the empirical density plot of the daily log returns 
+#of GE stock and the S&P composite index.
+
+pge = ggplot(data1b, aes(ge)) + 
+  stat_density(alpha = 0.4) + 
+  labs(x="Returns", y="Density") + 
+  ggtitle("GE") 
+
+psprtrn = ggplot(data1b, aes(sprtrn)) + 
+  stat_density(alpha = 0.4) +
+  labs(x="Returns", y="Density") + 
+  ggtitle("S&P") 
+grid.arrange(pge, psprtrn, ncol=2)
+
+
+
+
+
+
+
+#Consider the daily log returns of Netflix stock from January 2, 2009 to December 31, 2013 
+#as in Problem 1, Assignment 1. Perform the following tests:
+
+getwd()
+setwd("/Users/rachellevy/Desktop")
+data2 = read.table("d-nflx3dx0913.txt", header=T)
+head(data2)
+
+# a) Test the null hypothesis that the log return is symmetric with respect to its mean;
+data2l = log(data2[,-(1:2)] + 1)  
+#compute skewness test
+st = skewness(data2l$nflx) / sqrt(6 / length(data2l$nflx))  
+print(paste("Skewness Statistic: ", st))
+#compute the p-value
+p_st = 2 * (1 - pnorm(abs(st)))  
+print(paste("p-value: ", p_st))
+
+
+#b) Test the null hypothesis that the excess kurtosis of the returns is zero;
+#compute kurtosis test
+kt = kurtosis(data2l$nflx) / sqrt(24 / length(data2l$nflx))  
+print(paste("Kurtosis Statistic: ", kt))
+p_kt = 2 * (1 - pnorm(abs(kt)))
+print(paste("p-value: ", p_kt))
+
+#c) Construct a 95% confidence interval for the expected daily log return of Netflix stock.
+t_test = t.test(data2l$nflx)
+print(paste("Confidence Interval, Confidence Level 95%: ", t_test[4]))
+
+
+
+#3.  For this exercise, use the quarterly UK 
+#passenger vehicle production data from 1997:1--2005:1 (data set ukcars) from the Hyndeman text.
+library(fpp)
+data3 = window(ukcars, start=1997)
+#(a) Plot the data and describe the main features of the series.
+plot(data3, type="o", xlab = "Years", ylab = "UK Car Production (In Thousands)")
+
+#b) Decompose the series using STL and obtain the seasonally adjusted data.
+stl = stl(d3, s.window = "periodic")
+plot(stl)
+plot(data3, col="grey",
+     main="STL Seasonally Adjusted Data",
+     xlab="", ylab="")
+lines(seasadj(stl),col="red",ylab="Seasonally adjusted")
+#seasonally adjusted
+seas_adj = seasadj(stl)
+#acquire the seasonal Factors
+seas_factors = stl$time.series[2:11, "seasonal"]  
+print(seas_factors)
+print(seas_adj)
+
+# c) Forecast the next two years of the series using an additive damped trend method applied to the 
+#seasonally adjusted data. Then reseasonalize the forecasts. 
+#Record the parameters of the method and report the RMSE of the one-step forecasts from your method.
+
+fit_damped_seas_adj = holt(seas_adj, damped = TRUE)
+print(fit_damped_seas_adj)
+
+plot(fit_damped_seas_adj, xlab = "Years", ylab = "UK Car Production (In Thousands)")
+
+print(fit_damped_seas_adj$model)
+
+print(accuracy(fit_damped_seas_adj))
+
+resea_fit_damed_seas_adj = fit_damped_seas_adj$mean + seas_factors   # reseasonalize the forecasted data
+
+plot(d3, type = "o", xlab = "Years", ylab = "UK Car Production (In Thousands)", xlim = c(1997, 2008))
+lines(resea_fit_damed_seas_adj, type = "o", col = "blue")
+
+
+#d) Forecast the next two years of the series using Holt's linear method applied to the 
+#seasonally adjusted data. Then reseasonalize the forecasts. Record the parameters of 
+#the method and report the RMSE of the one-step forecasts from your method.
+fit_linear = holt(seas_adj)
+print(fit_linear)
+
+plot(fit_linear, xlab = "Years", ylab = "UK Car Production (In Thousands)")
+
+
+print(fit_linear$model)
+print(accuracy(fit_linear))
+
+resea_linear = fit_linear$mean + seas_factors
+plot(d3, type = "o", xlab = "Years", ylab = "UK Car Production (In Thousands)", xlim = c(1997, 2008))
+lines(resea_linear, type = "o", col = "blue")
+
+#e) Now use ETS to choose a seasonal model for the data.
+fit_ets = ets(d3, model = "ZZZ")
+print(fit_ets)
+plot(forecast(fit_ets), xlab = "Years", ylab = "UK Car Production (In Thousands)")
+
+print(accuracy(fit_ets))
+
+#f) Compare the RMSE of the fitted model with the RMSE of the model 
+#you obtained using an STL decomposition with Holt's method. Which gives the better in-sample fits?
+
+print(paste("Additive-Damped Model RMSE: ", accuracy(fit_damped_seas_adj)[2]))
+print(paste("Holt Model RMSE: ", accuracy(fit_linear)[2]))
+print(paste("ETS Model RMSE: ", accuracy(fit_ets)[2]))
+
+#g) Compare the forecasts from the two approaches? Which seems most reasonable?
+par(mfrow = c(3,1))
+p_damped = plot(forecast(fit_damped_seas_adj), type = "o", xlab = "Years", ylab = "Production")
+p_linear = plot(forecast(fit_linear), type = "o", xlab = "Years", ylab = "Production")
+p_ets = plot(forecast(fit_ets), type = "o", xlab = "Years", ylab = "Production")
+
+########
+require(fBasics)    # for calculations 
+require(fpp)        # for data 
+require(knitr)      # for table output
+require(ggplot2)    # for graphing
+require(ggthemes)   # for graphing beautifully
+require(gridExtra)  # for laying out graphs
+
+library(backtest)
+
+getwd()
+setwd("/Users/rachellevy/Desktop")
+data1 = read.table(file.path("m-umcsent.txt"), header=T)
+head(data1)
+
+#a
+consent = data1$VALUE
+tdx = data1[,1] + data1[,2] / 12 
+plot(tdx, consent, xlab = "year", ylab = "Sentiment", type = "l", main = "U of M Consumer Sentiment")
+
+#We can see a meandering trend in sentiment. We know that the datas are recoreded at monthly intervals 
+#so we will perform an STL decomposition to investigate our suspicion 
+#that this data has a seasonal component.
+
+a <- consent
+a.ts <- ts(a, frequency = 12)
+consent_stl = stl(a.ts, s.window="periodic")
+plot(consent_stl)
+
+#We see a seasonal component, however with this decomposition 
+#we are able to notice more distinctly the meandering of the trend.
+
+
+#B
+#We will use the Augumented Dickey-Fuller Test, which computes 
+#the Augmented Dickey-Fuller test for the null that the time series has a unit root:
+adf.test(consent)
+
+#Which, due to the p-value of 0.5306 meaning we fail to reject the null hypthothesis. 
+#This provides us with strong indication that the timeseries is non-stationary.
+tsdisplay(consent, main = "U of M Consumer Sentiment")
+
+#We're seeing what we think is an AR(1) process, because we see a large spike at the first lag, 
+#but we don't see any more significant spikes beyond the first lag. Where as, if we saw a second large spike 
+#at the second lag it would be an indicator of an AR(2) process.
+
+#c
+change = diff(consent)
+tsdisplay(change, main = "U of M Consumer Sentiment, first order difference")
+
+#We see spikes above the interval at 2, 5, and 12. 
+#So we'll choose a lag order of 12 to calculate the test statistic.
+
+#We'll further investigate by fitting an autoregressive time series model to the data to see what 
+#the automatic order selection turns up:
+
+#This also means we're not seeing a series that is stationary, 
+#as we'd expect to see the PACF graph not have any particular spikes. 
+#We should consider performing a first order differencing of the series.
+
+ar(change, method = "mle")
+
+#We observe that the order selected is 5.
+
+adf.test(change, k = 5)
+#From this we see reject the null hypothesis and posit that the first order difference 
+#of consent is a stationary series.
+
+
+#d
+#We first will examine whether the mean of the first order difference series is equal to zero:
+  
+t.test(change)
+
+#from the p-value of 0.9846 we are not able to reject the null hypothesis, 
+#indicating it is highly likley that the true mean is equal to zero.
+
+#We will perform a Box-Pierce and Ljung-Box Test to compute a Ljung test statistic 
+#for examining the null hypothesis of independence given a time series. 
+#This is also known as a portmanteau test.
+
+Box.test(change, lag = 12, type = "Ljung")
+
+#From the p-value of 0.01965 we must reject null hypothesis. 
+#This is an indicator that there are some significant serial correlations 
+#at the 5% level for the first order difference series. 
+#We should have expected as much from consideration of the ACF plot above, 
+#when we observed exceedences in 2, 5, and 12.
+
+#2a
+change = diff(consent)
+tsdisplay(change, main = "U of M Consumer Sentiment, first order difference")
+ar(change, method = "mle")
+#We see spikes above the interval at 2, 5, and 12. 
+#So we'll choose a lag order of 12 to calculate the test statistic.
+
+#b
+model1 = arima(change, order= c(5,0,0))
+print(model1)
+
+tsdiag(model1, gof.lag = 24)
+
+#c
+#We will use our model coeffeciants, along with the expression of 
+#the characteristic equation to compute the average length of business cycles:
+#characteristic equation
+poly1 = c(1, -model1$coef) 
+#find the zeros of the complex polynomial
+roots1 = polyroot(poly1)    
+print(roots1)
+print(Mod(roots1))
+print(2 * pi / acos(1.073056 / 1.493939))
+
+#This indicates implication of a two year business cycle in consumer sentiment.
+#Calulations were drawn from @tsay2005analysis page 45.
+
+
+#d
+model1_pred = predict(model1, 4)
+print(model1_pred$pred)
+
+print(model1_pred$se)
+
+model1_pred_lcl = model1_pred$pred - 1.96 * model1_pred$se
+model1_pred_ucl = model1_pred$pred + 1.96 * model1_pred$se
+print(model1_pred_lcl)
+
+print(model1_pred_ucl)
+
+
+#3a
+#create a mask to remove the paramater estimates with a t-ratio less than 1.2
+model1.se = sqrt(diag(vcov(model1)))
+model1.tratio = abs(model1$coef/model1.se)
+print(model1.tratio)
+#From this we see we need to create a mask of 0, NA, NA, 0, NA.
+
+mask = c(0, NA, NA, 0, NA)
+#Use the fixed argument in arima to construct a second model with this mask:
+model2 = arima(change, order=c(5,0,0), include.mean = FALSE, transform.pars = FALSE, fixed=mask)
+print(model1)
+
+print(model2)
+
+#b
+tsdiag(model2, gof.lag = 24)
+Box.test(model1$residuals, lag = 24, type = "Ljung")
+#The Ljung-Box test of the model residuals reveals a p-value that is not significant, 
+#we surmise that the model is adequate.
+
+#c
+accuracy(model1)
+
+accuracy(model2)
+#In terms of in sample fitting the RMSE of the first model is lower.
+
+Box.test(model1$residuals, lag = 5, type = "Ljung")
+
+Box.test(model2$residuals, lag = 3, type = "Ljung")
+#If both models are adequate, we will then have to choose based on AIC or BIC criteria.
+
+model1$aic
+
+model2$aic
+#The second model has slightly lower AIC.
+
+#d
+#We will use our model coeffeciants, along with the expression of 
+#the characteristic equation to compute the average length of business cycles:
+
+#characteristic equation  
+poly2 = c(1, -model2$coef) 
+#find the zeros of the complex polynomial
+roots2 = polyroot(poly2)    
+print(roots2)
+
+print(Mod(roots2))
+
+print(2 * pi / acos(1.157751 / 1.594751))
+#This indicates implication of a two year business cycle in consumer sentiment. 
+#It shows a 0.12 longer business cycle than the first model.
+
+
+#e
+# Backtest 
+p2=c(1,-model1$coef) 
+s2=polyroot(poly2) 
+s2 
+backtest(p2,change,380,1)
+
+
+####
+library(fpp)
+library(fBasics)
+library(fUnitRoots)
+
+
+getwd()
+setwd("/Users/rachellevy/Desktop")
+d1 = read.table(file.path("m-unempmean.txt"), header=T)
+head(d1)
+
+t1 <- ts(d1$Value, start = 1948, frequency = 12)
+autoplot(t1, main = "Mean Duration of Unemployment", ylab = "Duration", xlab = "Years")
+
+unemp_stl = stl(t1, s.window="periodic")
+plot(unemp_stl)
+
+#We'll visually examine the daa set to form initial impressions.
+#We can see a slightly increasing trend that has indication of seasonality and cyclic characteristics. 
+#We also notice the large increase between 2009 and 2014.
+#We will perform an STL decomposition to investigate our suspicion that this data has a seasonal component.
+
+
+#(a) Does the mean duration series have a unit root? Why?
+# Find unit root in series - multiple ways to try this
+# If p-value is > alpha, then fail to reject null that series is unit root
+# non-stationary (a unit root is present), suggests differencing is required
+# (page 91 of Intro TS)
+adf.test(t1)
+tsdisplay(t1, main = "Mean Duration of Unemployment")
+#Which, due to the p-value of 0.4033 meaning we fail to reject the null hypthothesis. 
+#This provides us with strong indication that the timeseries is non-stationary.
+
+#b
+dt1 = diff(t1)
+tsdisplay(dt1)
+#Well use a different test, the Kwiatkowski-Phillips-Schmidt-Shin (KPSS) test, 
+#which reverses the hypothesis, so the null-hypothesis is that the data re stationary:
+kpss.test(dt1)
+#Which, due to the p-value of 0.1 meaning we fail to reject the null hypothesis, 
+#we conclude from this test that the first order differencing of the time series is as far as we need to go (in terms of number of differencing).
+
+#We will also do a conventional t-test, which posits as the $H_0$ that the true mean is equal to zero.
+
+t.test(dt1)
+#Which, due to the p-value of 0.0992 we fail to reject the null hypothesis.
+
+
+#c
+m1 = ar(dt1, method = "mle")
+print(m1)
+#We'll now use the arima method to create an AR(12,0,0) model.
+m2 = arima(dt1, order = c(12, 0, 0), include.mean = FALSE)
+print(m2)
+tsdiag(m2, gof.lag = 24)
+
+#An ACF plot of the residuals show all correlations within the threshold limits 
+#indicating that the residuals are behaving like white noise.
+
+#We will perform a Box-Pierce and Ljung-Box Test to compute a Ljung test statistic for examining 
+#the null hypothesis of independence given a time series. This is also known as a portmanteau test.
+Box.test(m2$residuals, lag = 24, type = "Ljung")
+#This is testing to see if the residuals of the model look like white noise. The Ljung-Box 
+#test of the model residuals reveals a p-value that is not significant, 
+#we surmise that the model is adequate.
+
+#d
+print(m2)
+
+#e
+m3 = arima(dt1, order = c(2, 0, 1), seasonal = list(order = c(1,0,1), period = 12), include.mean = FALSE)
+print(m3)
+tsdiag(m3, gof.lag = 24)
+
+#An ACF plot of the residuals show all correlations within the threshold limits indicating 
+#that the residuals are behaving like white noise.
+
+#We will perform a Box-Pierce and Ljung-Box Test to compute a Ljung test statistic for examining 
+#the null hypothesis of independence given a time series. This is also known as a portmanteau test.
+Box.test(m3$residuals, lag = 24, type = "Ljung")
+#This is testing to see if the residuals of the model look like white noise. 
+#The Ljung-Box test of the model residuals reveals a p-value that is not significant, 
+#we surmise that the model is adequate.
+
+#f
+accuracy(m2)
+accuracy(m3)
+#The in-sample performance of the m2 (AR(12)) model is better than the m3 (AR(2,0,1) seasonal model.
+
+#g
+library(backtest)
+"backtest" <- function(m1,rt,orig,h,xre=NULL,fixed=NULL,inc.mean=TRUE){
+  # m1: is a time-series model object
+  # orig: is the starting forecast origin
+  # rt: the time series
+  # xre: the independent variables
+  # h: forecast horizon
+  # fixed: parameter constriant
+  # inc.mean: flag for constant term of the model.
+  #
+  regor=c(m1$arma[1],m1$arma[6],m1$arma[2])
+  seaor=list(order=c(m1$arma[3],m1$arma[7],m1$arma[4]),period=m1$arma[5])
+  T=length(rt)
+  if(orig > T)orig=T
+  if(h < 1) h=1
+  rmse=rep(0,h)
+  mabso=rep(0,h)
+  nori=T-orig
+  err=matrix(0,nori,h)
+  jlast=T-1
+  for (n in orig:jlast){
+    jcnt=n-orig+1
+    x=rt[1:n]
+    if (is.null(xre))
+      pretor=NULL else pretor=xre[1:n]
+    mm=arima(x,order=regor,seasonal=seaor,xreg=pretor,fixed=fixed,include.mean=inc.mean)
+    if (is.null(xre))
+      nx=NULL else nx=xre[(n+1):(n+h)]
+    fore=predict(mm,h,newxreg=nx)
+    kk=min(T,(n+h))
+    # nof is the effective number of forecats at the forecast origin n.
+    nof=kk-n
+    pred=fore$pred[1:nof]
+    obsd=rt[(n+1):kk]
+    err[jcnt,1:nof]=obsd-pred
+  }
+  #
+  for (i in 1:h){
+    iend=nori-i+1
+    tmp=err[1:iend,i]
+    mabso[i]=sum(abs(tmp))/iend
+    rmse[i]=sqrt(sum(tmp^2)/iend)
+  }
+  print("RMSE of out-of-sample forecasts")
+  print(rmse)
+  print("Mean absolute error of out-of-sample forecasts")
+  print(mabso)
+  backtest <- list(origin=orig,error=err,rmse=rmse,mabso=mabso)
+}
+backtest(m2, dt1, 750, 1, inc.mean = FALSE)
+backtest(m3, dt1, 750, 1, inc.mean = FALSE)
+#It appears that in in-sample fitting the first model (AR(12)) has a higher RMSE.
+
+#2
+d2 <- read.table("w-coilwtico.txt", header=T)
+head(d2)
+
+#We'll visually examine the daa set to form initial impressions.
+
+t2 = ts(d2$Value, start = 1986, frequency = 52)
+autoplot(t2, main = "Weekly Crue Oil Prices", ylab = "Value", xlab = "Years")
+#We can see a slightly increasing trend that has indication of seasonality and cyclic characteristics. 
+#We also notice the large increase between 2009 and 2014.
+
+
+
+#We will perform an STL decomposition to investigate our suspicion that this data has a seasonal component.
+oil_stl = stl(t2, s.window="periodic")
+plot(oil_stl)
+
+#We see a seasonal component. We also notice an interesting remainder in the time of high volatility.
+
+#a
+ldt2 = diff(log(t2))
+#We will perform a Box-Pierce and Ljung-Box Test to compute a Ljung test statistic for examining 
+#the null hypothesis of independence given a time series. This is also known as a portmanteau test.
+
+Box.test(ldt2, type = "Ljung")
+#From the p-value of 0.0001753 we must reject the null hypothesis. 
+#This is an indicator that there are some significant serial correlations at the 5% 
+#level for the first order difference series.
+
+#b
+m4 = ar(ldt2, type="mle")
+m5 = arima(ldt2, order=c(16, 0, 0))
+print(m5)
+
+tsdiag(m5)
+#An ACF plot of the residuals show all correlations within the threshold limits 
+#indicating that the residuals are behaving like white noise.
+
+#We will perform a Box-Pierce and Ljung-Box Test to compute a Ljung test statistic 
+#for examining the null hypothesis of independence given a time series. 
+#This is also known as a portmanteau test.
+Box.test(m5$residuals, type = "Ljung")
+#This is testing to see if the residuals of the model look like white noise. 
+#The Ljung-Box test of the model residuals reveals a p-value that is not significant, 
+#we surmise that the model is adequate.
+
+#c
+m6 = arima(ldt2, order=c(3, 0, 2), include.mean = FALSE)
+print(m6)
+
+tsdiag(m6)
+accuracy(m5)
+accuracy(m6)
+#It appears that M5 AR(16) has lower error than M6.
